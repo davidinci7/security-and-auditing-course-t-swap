@@ -91,4 +91,22 @@ contract TSwapPoolTest is Test {
         assertEq(pool.totalSupply(), 0);
         assert(weth.balanceOf(liquidityProvider) + poolToken.balanceOf(liquidityProvider) > 400e18);
     }
+
+    function testFlawedSwapExactOutput() public{
+        uint256 initialLiquidity = 100e18;
+        vm.startPrank(liquidityProvider);
+        weth.approve(address(pool), initialLiquidity);
+        poolToken.approve(address(pool), initialLiquidity);
+
+        pool.deposit(initialLiquidity, 0, initialLiquidity, uint64(block.timestamp));
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        poolToken.approve(address(pool), type(uint256).max);
+        pool.swapExactOutput(poolToken, weth, 1 ether, uint64(block.timestamp));
+        vm.stopPrank();
+
+        // The user should have a little bit less than 19 pool tokens, since the liquidity ratio was 1:1
+        assertLt(poolToken.balanceOf(user), 1 ether);
+    }
 }
