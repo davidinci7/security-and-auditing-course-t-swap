@@ -1,3 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    .full-page {
+        width:  100%;
+        height:  100vh; /* This will make the div take up the full viewport height */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .full-page img {
+        max-width:  200;
+        max-height:  200;
+        margin-bottom: 5rem;
+    }
+    .full-page div{
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+</head>
+<body>
+
+<div class="full-page">
+    <div>
+    <h1>Tswap Protocol Audit Report</h1>
+    <h3>Prepared by: David Rodriguez</h3>
+    </div>
+</div>
+
+</body>
+</html>
+
+
+Prepared by: David Rodriguez
+
+# Table of Contents
+- [Table of Contents](#table-of-contents)
+- [Protocol Summary](#protocol-summary)
+- [Disclaimer](#disclaimer)
+- [Risk Classification](#risk-classification)
+- [Audit Details](#audit-details)
+  - [Scope](#scope)
+  - [Roles](#roles)
+  - [Issues found](#issues-found)
+- [Findings](#findings)
+  - [High](#high)
+    - [\[H-1\] Incorrect fee calculation in `TSwapPool::getInputAmountBasedOnOutput` causes protocol to take too many tokens from users, resulting in lost fees.](#h-1-incorrect-fee-calculation-in-tswappoolgetinputamountbasedonoutput-causes-protocol-to-take-too-many-tokens-from-users-resulting-in-lost-fees)
+    - [\[H-2\] Lack of slippage protection in `TSwapPool::swapExactOutput` causes users to potentially receive way fewer tokens](#h-2-lack-of-slippage-protection-in-tswappoolswapexactoutput-causes-users-to-potentially-receive-way-fewer-tokens)
+    - [\[H-3\] `TSwapPool:sellPoolTokens` mismatches input and output tokens causing users to receive the incorrect amount of tokens.](#h-3-tswappoolsellpooltokens-mismatches-input-and-output-tokens-causing-users-to-receive-the-incorrect-amount-of-tokens)
+    - [\[H-4\] In `TSwapPool::_swap` the extra tokens given to users after every `swapCount` breaks the protocol invariant of `x * y = k`](#h-4-in-tswappool_swap-the-extra-tokens-given-to-users-after-every-swapcount-breaks-the-protocol-invariant-of-x--y--k)
+  - [Medium](#medium)
+    - [\[M-1\] `TSwapPool::deposit` is missing deadline check causing transactions to complete even after the deadline](#m-1-tswappooldeposit-is-missing-deadline-check-causing-transactions-to-complete-even-after-the-deadline)
+  - [Low](#low)
+    - [\[L-1\] `TSwapPool::LiquidityAdded` event has parameters out of order](#l-1-tswappoolliquidityadded-event-has-parameters-out-of-order)
+    - [\[L-2\] Default value returned by `TswapPool:swapExactInput` results in incorrect return value given.](#l-2-default-value-returned-by-tswappoolswapexactinput-results-in-incorrect-return-value-given)
+  - [Informationals](#informationals)
+    - [\[I-1\] `PoolFactory::PoolFactory__PoolDoesNotExist` is not used and should be removed](#i-1-poolfactorypoolfactory__pooldoesnotexist-is-not-used-and-should-be-removed)
+    - [\[I-2\] `PoolFactory::constructor` Lacking zero address checks](#i-2-poolfactoryconstructor-lacking-zero-address-checks)
+    - [\[I-3\] `PoolFactory::createPool` should use `.symbol()` instead of `.name()`](#i-3-poolfactorycreatepool-should-use-symbol-instead-of-name)
+    - [\[I-4\] `TSwapPool::constructor` Lacking zero address check - wethToken \& poolToken](#i-4-tswappoolconstructor-lacking-zero-address-check---wethtoken--pooltoken)
+    - [\[I-5\] `TSwapPool` events should be indexed](#i-5-tswappool-events-should-be-indexed)
+
+# Protocol Summary
+
+This project is meant to be a permissionless way for users to swap assets between each other at a fair price. You can think of T-Swap as a decentralized asset/token exchange (DEX). T-Swap is known as an Automated Market Maker (AMM) because it doesn't use a normal "order book" style exchange, instead it uses "Pools" of an asset.
+
+# Disclaimer
+
+David Rodriguez security researcher makes all effort to find as many vulnerabilities in the code in the given time period, but holds no responsibilities for the findings provided in this document. A security audit by the team is not an endorsement of the underlying business or product. The audit was time-boxed and the review of the code was solely on the security aspects of the Solidity implementation of the contracts.
+
+# Risk Classification
+
+|            |        | Impact |        |     |
+| ---------- | ------ | ------ | ------ | --- |
+|            |        | High   | Medium | Low |
+|            | High   | H      | H/M    | M   |
+| Likelihood | Medium | H/M    | M      | M/L |
+|            | Low    | M      | M/L    | L   |
+
+We use the [CodeHawks](https://docs.codehawks.com/hawks-auditors/how-to-evaluate-a-finding-severity) severity matrix to determine severity. See the documentation for more details.
+
+# Audit Details  
+
+**The findings described in this document correspond the following commit hash:**
+```
+55d1e086ed0917fd055b14f63099c2342eb6b86a
+```
+
+## Scope 
+
+```
+./src/
+-- TSwapPool.sol
+-- PoolFactory.sol
+```
+## Roles
+
+- Liquidity Providers: Users who have liquidity deposited into the pools. Their shares are represented by the LP ERC20 tokens. They gain a 0.3% fee every time a swap is made. 
+- Users: Users who want to swap tokens.
+  
+
+## Issues found
+
+| Severtity | Number of issues found |
+| --------- | ---------------------- |
+| High      | 4                      |
+| Medium    | 1                      |
+| Low       | 2                      |
+| Info      | 5                      |
+| Total     | 12                     |
+
+# Findings
+
 ## High
 
 ### [H-1] Incorrect fee calculation in `TSwapPool::getInputAmountBasedOnOutput` causes protocol to take too many tokens from users, resulting in lost fees.

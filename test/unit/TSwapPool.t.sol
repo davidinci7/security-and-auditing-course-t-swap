@@ -103,10 +103,31 @@ contract TSwapPoolTest is Test {
 
         vm.startPrank(user);
         poolToken.approve(address(pool), type(uint256).max);
-        pool.swapExactOutput(poolToken, weth, 1 ether, uint64(block.timestamp));
+        pool.swapExactOutput(poolToken, weth, 1e17, uint64(block.timestamp));
         vm.stopPrank();
 
-        // The user should have a little bit less than 19 pool tokens, since the liquidity ratio was 1:1
-        assertLt(poolToken.balanceOf(user), 1 ether);
+        // The user should have a little bit less than 19.5 pool tokens, since the liquidity ratio was 1:1. But it ends
+        // up having less than 10.
+        assertLt(poolToken.balanceOf(user), 10 ether);
+    }
+
+    function testFlawedSellPoolTokens() public{
+       uint256 initialLiquidity = 100e18;
+        vm.startPrank(liquidityProvider);
+        weth.approve(address(pool), initialLiquidity);
+        poolToken.approve(address(pool), initialLiquidity);
+
+        pool.deposit(initialLiquidity, 0, initialLiquidity, uint64(block.timestamp));
+        vm.stopPrank(); 
+
+        vm.startPrank(user);
+        poolToken.approve(address(pool), type(uint256).max);
+        pool.sellPoolTokens(5e17);
+        vm.stopPrank();
+
+        uint256 expectedRemainingPoolTokens = (10e18) - (5e17);
+        uint256 actualRemainingPoolTokens = poolToken.balanceOf(user);
+
+        assert(expectedRemainingPoolTokens != actualRemainingPoolTokens);
     }
 }
